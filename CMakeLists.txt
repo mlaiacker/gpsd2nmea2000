@@ -1,5 +1,5 @@
 
-PROJECT(nmea0183_to_nmea2000)
+PROJECT(gpsd2nmea2000)
 cmake_minimum_required(VERSION 2.8)
 
 set(CMAKE_BUILD_TYPE RelWithDebInfo)
