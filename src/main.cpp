@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <stdio.h>
 #include <iostream>
+#include <cmath>
 #include <time.h>
 
 #include <NMEA2000_SocketCAN.h>       // https://github.com/thomasonw/NMEA2000_socketCAN
@@ -180,8 +181,11 @@ void SendN2kPosition(gps_data_t *gpsd_data) {
     SchedulerSOG.UpdateNextTime();
     if(gpsd_data->fix.mode>=MODE_2D)
     {
-        SetN2kCOGSOGRapid(N2kMsg, 1, tN2kHeadingReference::N2khr_true, gpsd_data->fix.track, gpsd_data->fix.speed);
-        NMEA2000.SendMsg(N2kMsg);
+        if(!isnan(gpsd_data->fix.track)){
+          //printf("COG=%f, SOG=%f\r\n", gpsd_data->fix.track, gpsd_data->fix.speed);
+          SetN2kCOGSOGRapid(N2kMsg, 1, tN2kHeadingReference::N2khr_true, DegToRad(gpsd_data->fix.track), gpsd_data->fix.speed);
+          NMEA2000.SendMsg(N2kMsg);
+        }
     }
   }
   
@@ -197,11 +201,13 @@ void SendN2kPosition(gps_data_t *gpsd_data) {
     time_midnight.tv_sec = mkgmtime(&tm_now);
 
     struct  timespec since_midnight = timespec_sub(gpsd_data->fix.time, time_midnight);
-    //printf("dayssince1970=%i sec since midnight=%li\r\n", dayssince1970, since_midnight.tv_sec);
-    SetN2kGNSS(N2kMsg, 1, dayssince1970, since_midnight.tv_sec, 
-    gpsd_data->fix.latitude, gpsd_data->fix.longitude, gpsd_data->fix.altHAE, tN2kGNSStype::N2kGNSSt_GPSSBASWAASGLONASS, 
-    (tN2kGNSSmethod)gpsd_data->fix.status, gpsd_data->satellites_used, gpsd_data->dop.hdop, gpsd_data->dop.pdop);
-    NMEA2000.SendMsg(N2kMsg);
+    //printf("dayssince1970=%i sec since midnight=%li fix.mode=%i\r\n", dayssince1970, since_midnight.tv_sec, gpsd_data->fix.mode);
+    if(gpsd_data->fix.mode>=MODE_2D){
+      SetN2kGNSS(N2kMsg, 1, dayssince1970, since_midnight.tv_sec, 
+      gpsd_data->fix.latitude, gpsd_data->fix.longitude, gpsd_data->fix.altHAE, tN2kGNSStype::N2kGNSSt_GPSSBASWAASGLONASS, 
+      (tN2kGNSSmethod)(gpsd_data->fix.mode), gpsd_data->satellites_used, gpsd_data->dop.hdop, gpsd_data->dop.pdop);
+      NMEA2000.SendMsg(N2kMsg);
+    }
   }
 }
 
