@@ -112,6 +112,7 @@ tN2kSyncScheduler SchedulerPosition(false,1000,110);
 // Call back for NMEA2000 open. This will be called, when library starts bus communication.
 // See NMEA2000.SetOnOpen(OnN2kOpen); on setup()
 void OnN2kOpen() {
+    cout << "Starting nmea2000 gps device" << endl;
   // Start schedulers now.
   SchedulerPosition.UpdateNextTime();
   SchedulerRapid.UpdateNextTime();
@@ -120,13 +121,13 @@ void OnN2kOpen() {
 
 // *****************************************************************************
 void setup() {
-    cout << "Starting nmea2000 gps device, reading from gpsd" << endl;
     gps_rec = new gpsmm("localhost", DEFAULT_GPSD_PORT);
 
     if (gps_rec->stream(WATCH_ENABLE|WATCH_JSON) == NULL) {
         cerr << "No GPSD running.\n";
         exit(1);
     }
+    cout << "Start reading from gpsd" << endl;
 
 
     setvbuf (stdout, NULL, _IONBF, 0);                                          // No buffering on stdout, just send chars as they come.
@@ -152,7 +153,7 @@ void setup() {
     NMEA2000.SetForwardType(tNMEA2000::fwdt_Text); // Show in clear text. Leave uncommented for default Actisense format.
 
   // If you also want to see all traffic on the bus use N2km_ListenAndNode instead of N2km_NodeOnly below
-  NMEA2000.SetMode(tNMEA2000::N2km_ListenAndNode, 42);
+  NMEA2000.SetMode(tNMEA2000::N2km_ListenAndNode, 21);
   //NMEA2000.SetDebugMode(tNMEA2000::dm_Actisense); // Uncomment this, so you can test code without CAN bus chips on Arduino Mega
   NMEA2000.EnableForward(false); // Disable all msg forwarding to USB (=Serial)
   // Here we tell library, which PGNs we transmit
@@ -201,7 +202,6 @@ void SendN2kPosition(gps_data_t *gpsd_data) {
     gpsd_data->fix.latitude, gpsd_data->fix.longitude, gpsd_data->fix.altHAE, tN2kGNSStype::N2kGNSSt_GPSSBASWAASGLONASS, 
     (tN2kGNSSmethod)gpsd_data->fix.status, gpsd_data->satellites_used, gpsd_data->dop.hdop, gpsd_data->dop.pdop);
     NMEA2000.SendMsg(N2kMsg);
-    // Serial.print(millis()); Serial.println(", Temperature send ready");
   }
 }
 
