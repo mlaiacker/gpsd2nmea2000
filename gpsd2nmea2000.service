@@ -1,0 +1,15 @@
+[Unit]
+Description=gpsd2nmea2000
+
+
+[Service]
+StandardOutput=journal
+#TTYPath=/dev/tty1
+ExecStart=/opt/gpsd/gpsd2nmea2000
+WorkingDirectory=/opt/gpsd/
+Restart=always
+User=max
+RestartSec=10s
+
+[Install]
+WantedBy=multi-user.target
