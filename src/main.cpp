@@ -11,6 +11,7 @@
 
 #include <cstdlib>
 #include <stdio.h>
+#include <string.h>
 #include <iostream>
 #include <cmath>
 #include <time.h>
@@ -26,6 +27,7 @@ using namespace std;
 
 #include <libgpsmm.h>
 gpsmm *gps_rec;
+struct gps_data_t gps_data_last;
 
 
 #ifndef NSEC_PER_SEC
@@ -207,6 +209,7 @@ void SendN2kPosition(gps_data_t *gpsd_data) {
       gpsd_data->fix.latitude, gpsd_data->fix.longitude, gpsd_data->fix.altHAE, tN2kGNSStype::N2kGNSSt_GPSSBASWAASGLONASS, 
       (tN2kGNSSmethod)(gpsd_data->fix.mode), gpsd_data->satellites_used, gpsd_data->dop.hdop, gpsd_data->dop.pdop);
       NMEA2000.SendMsg(N2kMsg);
+
     }
   }
 }
@@ -215,16 +218,15 @@ void loop() {
   NMEA2000.ParseMessages();
  	struct gps_data_t* newdata;
 
-	if (!gps_rec->waiting(1000000))
-	  return;
-
-	if ((newdata = gps_rec->read()) == NULL) {
+	if (gps_rec->waiting(100000))
+  {
+    if((newdata = gps_rec->read()) != NULL){
+      memcpy(newdata, &gps_data_last, sizeof(gps_data_last));
+    } else {
 	    cerr << "Read error.\n";
-	    return;
-	} else {
-        SendN2kPosition(newdata);
-	}
-
+    }
+  } 
+    SendN2kPosition(&gps_data_last);
 }
 
 int main(){
