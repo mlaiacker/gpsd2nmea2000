@@ -38,7 +38,7 @@ for any corresponding short options.
 ## Running
 the default setup is a gpsd running on localhost and using can0 to write the nmea2000 data to
 ```
-gpsd2nmea2000 --device=can1 --host=localhost --port=2947
+gpsd2nmea2000 --device=can0 --host=localhost --port=2947
 ```
 
 ## Dependencies
