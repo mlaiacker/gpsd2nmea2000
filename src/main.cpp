@@ -36,13 +36,17 @@ struct arguments_t
   int verbose;
   char *gpsd_hostname;
   char* gpsd_port;
-};
+  unsigned int serial_number;
+  uint8_t n2k_source;
+ };
 
 struct arguments_t arguments = {
   .can_device_name = (char*)"can0",
   .verbose = 0,
   .gpsd_hostname = (char*)"localhost",
-  .gpsd_port = (char*)DEFAULT_GPSD_PORT
+  .gpsd_port = (char*)DEFAULT_GPSD_PORT,
+  .serial_number = 897256,
+  .n2k_source = 21
 };
 
 #ifndef NSEC_PER_SEC
@@ -96,8 +100,8 @@ const unsigned long TransmitMessages[] PROGMEM={129025L,129026L,129029L,126992L,
 // Setup periods according PGN definition (see comments on IsDefaultSingleFrameMessage and
 // IsDefaultFastPacketMessage) and message first start offsets. Use a bit different offset for
 // each message so they will not be sent at same time.
-tN2kSyncScheduler SchedulerRapid(false,250,100);
-tN2kSyncScheduler SchedulerSOG(false,250,120);
+tN2kSyncScheduler SchedulerRapid(false,500,100);
+tN2kSyncScheduler SchedulerSOG(false,500,120);
 tN2kSyncScheduler SchedulerPosition(false,1000,140);
 tN2kSyncScheduler SchedulerTime(false,1000,160);
 
@@ -130,7 +134,7 @@ void setup() {
     setvbuf (stdout, NULL, _IONBF, 0);                                          // No buffering on stdout, just send chars as they come.
 
   char serial_num_str[Max_N2kModelID_len+1];
-  uint32_t serial_number = 897256;
+  uint32_t serial_number = arguments.serial_number;
   sprintf(serial_num_str, "%i", serial_number);
   // Set Product information
   NMEA2000->SetProductInformation(serial_num_str, // Manufacturer's Model serial code
@@ -153,7 +157,7 @@ void setup() {
     NMEA2000->SetForwardType(tNMEA2000::fwdt_Text); // Show in clear text. Leave uncommented for default Actisense format.
 
   // If you also want to see all traffic on the bus use N2km_ListenAndNode instead of N2km_NodeOnly below
-  NMEA2000->SetMode(tNMEA2000::N2km_ListenAndNode, 21);
+  NMEA2000->SetMode(tNMEA2000::N2km_ListenAndNode, arguments.n2k_source);
   //NMEA2000.SetDebugMode(tNMEA2000::dm_Actisense); // Uncomment this, so you can test code without CAN bus chips on Arduino Mega
   NMEA2000->EnableForward(false); // Disable all msg forwarding to USB (=Serial)
   // Here we tell library, which PGNs we transmit
@@ -235,12 +239,27 @@ void SendN2kPosition(gps_data_t *gpsd_data) {
     SchedulerPosition.UpdateNextTime();
     uint16_t  dayssince1970;
     struct timespec since_midnight;
+    int sats = fmaxf(gpsd_data->satellites_used, gpsd_data->satellites_visible);
+    sats = fmaxf(sats , gpsd_data->log.numSV);
+      int skyview_sats = 0;
+      for(int i=0;i<MAXCHANNELS;i++)
+      {
+        if(gpsd_data->skyview[i].ss>0 || gpsd_data->skyview[i].used) skyview_sats++;
+      }
+      sats = fmaxf(sats , skyview_sats);      
+    if(gpsd_data->fix.mode >=MODE_2D )
+    {
+      // we must have at least 4
+      sats = fmaxf(sats , 4);
+    }
     GPSGetTimeN2k(gpsd_data, &dayssince1970, &since_midnight);
-    if(arguments.verbose>0) printf("sats=%i fix.mode=%i\r\n", gpsd_data->satellites_visible, gpsd_data->fix.mode);
+    if(arguments.verbose>0){
+        printf("sats=%i fix.mode=%i\r\n", sats, gpsd_data->fix.mode);
+    }
     if(gpsd_data->fix.mode>=MODE_2D){
       SetN2kGNSS(N2kMsg, sid, dayssince1970, since_midnight.tv_sec, 
-      gpsd_data->fix.latitude, gpsd_data->fix.longitude, gpsd_data->fix.altHAE, tN2kGNSStype::N2kGNSSt_integrated, 
-      (tN2kGNSSmethod)(gpsd_data->fix.mode), gpsd_data->satellites_visible, gpsd_data->dop.hdop, gpsd_data->dop.pdop);
+      gpsd_data->fix.latitude, gpsd_data->fix.longitude, gpsd_data->fix.altMSL, tN2kGNSStype::N2kGNSSt_GPSSBASWAASGLONASS, 
+      (tN2kGNSSmethod)(gpsd_data->fix.mode), sats, gpsd_data->dop.hdop, gpsd_data->dop.pdop);
       NMEA2000->SendMsg(N2kMsg);
       //SetN2kGNSSDOPData
     }
